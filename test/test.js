@@ -26,6 +26,10 @@ describe("phantom html to pdf", function () {
             conversion.options.strategy = strategy;
         });
 
+        after(function() {
+            conversion.kill();
+        });
+
         it("should set number of pages correctly", function (done) {
             conversion("<h1>aa</h1><div style='page-break-before: always;'></div><h1>bb</h1>", function (err, res) {
                 if (err)
@@ -49,6 +53,8 @@ describe("phantom html to pdf", function () {
         });
 
         it('should create a pdf file ignoring ssl errors', function(done) {
+            this.timeout(5000);
+
             conversion({
                 url: 'https://sygris.com'
             }, function(err, res) {
@@ -74,6 +80,34 @@ describe("phantom html to pdf", function () {
                 res.numberOfPages.should.be.eql(1);
                 res.stream.should.have.property("readable");
                 done();
+            });
+        });
+
+        it('should throw timeout when waiting for page js execution', function(done) {
+            this.timeout(20000);
+
+            conversion({
+                html: '<h1>aa</h1>',
+                timeout: 500,
+                waitForJS: true
+            }, function(err, res) {
+                console.log('==========' + strategy + '=========');
+                console.dir(err);
+
+                if (!err) {
+                    return done(new Error('the conversion doesn\'t throw error'));
+                }
+
+                if (err.code === 'ECONNRESET') {
+                    debugger;
+                }
+
+                if (err.phantomTimeout !== undefined) {
+                    should(err.phantomTimeout).be.eql(true);
+                    done();
+                } else {
+                    done(err);
+                }
             });
         });
     }
